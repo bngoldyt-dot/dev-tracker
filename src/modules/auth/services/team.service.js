@@ -142,4 +142,28 @@ const getMyInvitations = async (userId) => {
   return invitations;
 };
 
-module.exports = {sendInvite , getMyInvitations , respondToInvite , getTeamMembers}
+const removeMember = async (adminId , memberId) => {
+  if(!adminId , memberId){
+    throw new ApiError(400, "Admin ID and Member ID are required");
+  }
+
+  const member = await Developer.findUserById(memberId);
+  const isInTeam = member.teams.some(
+    (t) => t.adminId.toString() === adminId.toString()
+  );
+
+  if (!isInTeam) {
+    throw new ApiError(400, "This developer is not a member of your team");
+  }
+  await InvitationRepo.removeMemberFromTeam(adminId, memberId);
+
+  if (global.io) {
+    global.io.to(memberId.toString()).emit("removed_from_team", {
+      message: "You have been removed from the team by the admin.",
+      adminId: adminId,
+    });
+  }
+
+  return { message: "Member removed successfully from your team" };
+}
+module.exports = {sendInvite , getMyInvitations , respondToInvite , getTeamMembers , removeMember}

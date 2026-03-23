@@ -1,4 +1,5 @@
-const teamService = require("../../services/team.service")
+const { tryCatch } = require("bullmq");
+const teamService = require("../../services/team.service");
 const sendInvite = async (req, res, next) => {
   try {
     const adminId = req.user._id;
@@ -8,7 +9,8 @@ const sendInvite = async (req, res, next) => {
 
     res.status(201).json({
       status: "success",
-      message: "Invitation sent successfully. The developer will see it in their dashboard.",
+      message:
+        "Invitation sent successfully. The developer will see it in their dashboard.",
       data: {
         invitation,
       },
@@ -23,20 +25,23 @@ const sendInvite = async (req, res, next) => {
 const respondToInvitation = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { invitationId } = req.params; 
-    const { decision } = req.body;     
+    const { invitationId } = req.params;
+    const { decision } = req.body;
 
-    const result = await teamService.respondToInvite(userId, invitationId, decision);
+    const result = await teamService.respondToInvite(
+      userId,
+      invitationId,
+      decision,
+    );
 
     res.status(200).json({
       status: "success",
-      message: result.message
+      message: result.message,
     });
   } catch (error) {
     next(error);
   }
 };
-
 
 /**
  * @desc    Get all developers in the admin's team
@@ -81,9 +86,23 @@ const getMyInvitations = async (req, res, next) => {
   }
 };
 
+const removeTeamMember = async (req, res, next) => {
+  try {
+    const adminId = req.user._id;
+    const { memberId } = req.params;
+    const result = await teamService.removeMember(adminId, memberId);
+    res.status(200).json({
+      status: "success",
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 module.exports = {
   sendInvite,
   getMyInvitations,
   respondToInvitation,
-  getTeamMembers
+  getTeamMembers,
+  removeTeamMember
 };

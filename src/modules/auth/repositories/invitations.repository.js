@@ -43,11 +43,19 @@ const findTeamMembers = async (adminId) => {
   }).select("name email teams.$"); // الـ teams.$ بترجع بس بيانات الفريق ده مش كل الفرق
 };
 
+const removeMemberFromTeam = async (adminId, memberId) => {
+  return await Developer.findByIdAndUpdate(
+    memberId,
+    { $pull: { teams: { adminId: adminId } } },
+    { new: true }
+  );
+};
 module.exports = {
   createInvitation,
   findPendingInvite,
   findInvitesForUser,
   findInviteById,
   updateInvitationStatus,
-  findTeamMembers
+  findTeamMembers,
+  removeMemberFromTeam
 }
