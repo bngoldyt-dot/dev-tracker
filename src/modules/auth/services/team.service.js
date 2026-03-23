@@ -143,7 +143,7 @@ const getMyInvitations = async (userId) => {
 };
 
 const removeMember = async (adminId , memberId) => {
-  if(!adminId , memberId){
+  if(!adminId , !memberId){
     throw new ApiError(400, "Admin ID and Member ID are required");
   }
 
