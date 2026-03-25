@@ -74,8 +74,29 @@ const completeTaskService = async (developerId, projectId, taskId) => {
   return task;
 };
 
-const getProjectFinancialsService = async (projectId) => {
-  return getProjectFinancials(projectId);
+// services/project.service.js
+const getProjectFinancialsService = async (projectId, developerId) => {
+  if (!developerId || !projectId)
+    throw new ApiError(401, "Unauthorized: missing ids");
+
+  // 1. نجيب المشروع عشان نعرف الأونر
+  const project = await projectSchema.findById(projectId);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  // 2. التحقق من الصلاحية
+  const isOwner = project.owner.toString() === developerId.toString();
+  
+  const user = await findUserById(developerId);
+  // بندور هل المطور ده في تيم الأونر ومسموح له يشوف الفلوس؟
+  const teamContext = user.teams.find(t => t.adminId.toString() === project.owner.toString());
+
+  // لو مش صاحب المشروع ومعندوش صلاحية canSeeFinancials
+  if (!isOwner && (!teamContext || !teamContext.permissions.canSeeFinancials)) {
+    throw new ApiError(403, "Access Denied: You don't have permission to view project financials");
+  }
+
+  // 3. لو الصلاحية تمام.. نكلم الـ Repository يجيب الداتا
+  return await getProjectFinancials(projectId);
 };
 
 const getAllTasks = async (projectId, developerId) => {

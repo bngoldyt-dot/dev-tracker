@@ -43,10 +43,13 @@ const completeDevTask = async (req, res, next) => {
   }
 };
 
+// controllers/project.controller.js
 const getProjectFinancialsController = async (req, res, next) => {
   try {
-    const projectId = req.params.projectId;
-    const financials = await getProjectFinancialsService(projectId);
+    const { projectId } = req.params;
+    const developerId = req.user.id; // جاية من الـ Auth Middleware
+
+    const financials = await getProjectFinancialsService(projectId, developerId);
 
     res.status(200).json({
       status: "success",
