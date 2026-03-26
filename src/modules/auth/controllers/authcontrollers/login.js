@@ -29,7 +29,7 @@ const googleLogin = async (req, res, next) => {
     const { idToken } = req.body;
     if (!idToken) return next(new ApiError(400, "Google Token is required"));
 
-    const { developer, token } = await authService.googleLoginDev(idToken);
+    const { developer, token } = await googleLoginDev (idToken);
 
     res.status(200).json({
       message: "Google Login successful",
