@@ -133,5 +133,7 @@ module.exports = {
   deleteProjects,
   countAllProjects,
   countAllArchivedProjects, 
-  getOneActiveProjects
+  getOneActiveProjects,
+  incrementDeveloperProjectCount
+  
 };
