@@ -20,14 +20,16 @@ const register = async (req, res, next) => {
 
 const creatAccount = async (req , res , next) => {
   try {
-    const{otp  , token}  = req.body; 
-    const developer = await otpToCreatAcc(otp , token);
+    const { otp, token } = req.body; 
+    const developer = await otpToCreatAcc(otp, token);
+    
     res.status(200).json({
       message: "Account created",
-      id:developer._id, 
-      name:developer.name, 
-      email:developer.email, 
-      role:developer.role
+      id: developer._id, 
+      name: developer.name, 
+      email: developer.email, 
+      role: developer.role,
+      subscription: developer.subscription 
     })
   } catch (error) {
     next(error)

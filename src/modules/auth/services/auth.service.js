@@ -73,6 +73,7 @@ const otpToCreatAcc = async (otp, token) => {
       name: decoded.name,
       email: decoded.email,
       password: decoded.hashedPassword,
+      subscription: {}
     });
 
     return developer;
@@ -110,7 +111,8 @@ const googleLoginDev = async (idToken) => {
         name,
         email,
         password: hashedPassword,
-        isVerified: true, // جوجل موثق بالفعل
+        isVerified: true,
+        subscription: {} 
       });
     }
 
@@ -163,6 +165,7 @@ const githubLoginDev = async (code) => {
         email: userEmail,
         password: hashedPassword,
         isVerified: true, // جيتهاب موثق الحساب
+        subscription:{}
       });
     }
 

@@ -33,6 +33,24 @@ const developerSchema = new mongoose.Schema(
       },
       isPremium: { type: Boolean, default: false },
       stripeCustomerId: { type: String }, // هنحتاجه لما نربط Stripe
+      status: {
+        type: String,
+        enum: ["trialing", "active", "past_due", "canceled", "free"],
+        default: "free"
+      },
+      currentPeriodEnd: { type: Date },
+      trialEndsAt: { type: Date },
+      paymobSubscriptionId: { type: String },
+      interval: {
+        type: String,
+        enum: ["monthly", "yearly"],
+        default: "monthly"
+      },
+      currency: {
+        type: String,
+        enum: ["EGP", "USD"],
+        default: "USD"
+      }
     },
     projectCount: { 
       type: Number, 
