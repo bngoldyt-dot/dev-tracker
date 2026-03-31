@@ -17,9 +17,11 @@ router.post(
 
 // Webhook for Paymob
 router.post(
-  '/webhooks/paymob', 
+  '/webhooks/paymob',
   webhookController.handlePaymobWebhook
 );
+
+router.get('/plans', subscriptionController.getAllPlans);
 
 // -------------------------------------------------------------
 // Protected Routes

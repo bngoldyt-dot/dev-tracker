@@ -131,3 +131,17 @@ exports.cancelSubscription = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getAllPlans = async (req, res, next) => {
+  try {
+    const plans = await Plan.find();
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        plans
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
