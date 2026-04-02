@@ -43,7 +43,7 @@ const createCheckoutSession = async ({ developer, planId, successUrl, cancelUrl 
       line_items: [
         {
           // NOTE: plan.stripeProductId MUST be the Stripe Price ID (starts with price_)
-          price: plan.stripeProductId,
+          price: plan.stripePriceId || plan.stripeProductId,
           quantity: 1,
         },
       ],

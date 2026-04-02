@@ -24,7 +24,7 @@ const developerSchema = new mongoose.Schema(
       lowercase: true,
     },
 
-    // --- حقول الـ Free Trial والاشتراك الجديدة ---
+
     subscription: {
       plan: {
         type: String,
