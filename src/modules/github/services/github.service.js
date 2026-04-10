@@ -90,10 +90,17 @@ const linkGithubAccount = async (developerId, code) => {
   // Step 3 — Check if this GitHub account is already linked to ANOTHER user
   const existing = await findByGithubId(githubId);
   if (existing && existing._id.toString() !== developerId) {
-    throw new ApiError(
-      409,
-      "This GitHub account is already linked to another DevTracker account."
-    );
+    // The user owns the GitHub account (proven via OAuth token),
+    // so we can safely unlink it from their old DevTracker account
+    // and link it to their current one.
+    await Developer.findByIdAndUpdate(existing._id, {
+      $unset: {
+        "github.githubId": 1,
+        "github.githubToken": 1,
+        "github.githubLogin": 1,
+        "github.linkedRepos": 1
+      }
+    });
   }
 
   // Step 4 — Load the current developer document
