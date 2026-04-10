@@ -236,7 +236,7 @@ const fetchTrialStatus = async (developerId) => {
     return { isPro: false, active: false, daysRemaining: 0, endsAt: null, githubLinked: false };
   }
 
-  const { isPro, proTrialEndDate, githubId, githubLogin } = slice.github;
+  const { isPro, proTrialEndDate, githubId, githubLogin, linkedRepos } = slice.github;
   const { active, daysRemaining, endsAt } = getTrialStatus(proTrialEndDate);
 
   return {
@@ -246,6 +246,7 @@ const fetchTrialStatus = async (developerId) => {
     active,
     daysRemaining,
     endsAt,
+    linkedRepos: linkedRepos || [],
   };
 };
 
