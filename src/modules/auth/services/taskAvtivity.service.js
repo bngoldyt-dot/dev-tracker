@@ -47,7 +47,7 @@ async function startTask({ developerId, projectId, taskId, source = "MANUAL" }) 
       developerId, projectId, taskId
     }, {
       delay: remainingTime,
-      jobId: `autocomplete:${taskId}`
+      jobId: `autocomplete_${taskId}`
     });
     bullJobId = job.id;
   }
