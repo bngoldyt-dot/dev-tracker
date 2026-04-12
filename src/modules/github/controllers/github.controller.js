@@ -74,9 +74,13 @@ const listRepos = async (req, res, next) => {
 
 // ─── POST /github/select-repos ────────────────────────────────────────────────
 /**
- * Stores the user's selected repos into linkedRepos.
+ * Agent 1: The Logic & Validation Architect
  *
- * Body: { repos: Array<{ repoId, name, fullName, private?, htmlUrl?, language? }> }
+ * Receives the full desired repos array, detects newly added repos via state
+ * comparison in the service, triggers auto-project creation, and returns a
+ * rich summary instead of a simple success message.
+ *
+ * Body: { repos: Array<{ repoId, name, fullName, private?, htmlUrl?, language?, description? }> }
  */
 const selectReposHandler = async (req, res, next) => {
   try {
@@ -86,11 +90,26 @@ const selectReposHandler = async (req, res, next) => {
     }
 
     const developerId = req.user._id.toString();
-    const linkedRepos = await selectRepos(developerId, repos);
+
+    // Service handles: validation, state diff, DB persist, project auto-creation
+    const { linkedRepos, projectSummary, newReposCount } = await selectRepos(developerId, repos);
+
+    // Fetch trial status to include in the summary for the UI
+    const trialStatus = await fetchTrialStatus(developerId);
 
     res.status(200).json({
       message: "Selected repositories saved successfully.",
-      count: linkedRepos.length,
+      summary: {
+        newProjectsCreated: projectSummary.created,
+        projectsSkipped: projectSummary.skipped,
+        newReposLinked: newReposCount,
+        totalLinkedRepos: linkedRepos.length,
+        trialStatus: {
+          active: trialStatus.active,
+          daysRemaining: trialStatus.daysRemaining,
+          endsAt: trialStatus.endsAt,
+        },
+      },
       data: linkedRepos,
     });
   } catch (error) {

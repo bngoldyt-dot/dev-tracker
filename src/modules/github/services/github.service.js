@@ -21,6 +21,7 @@ const {
   getGithubSlice,
 } = require("../repositories/github.repository");
 const Developer = require("../../auth/schemas/developer.schema");
+const Project = require("../../auth/schemas/project.schema");
 
 // ─── In-memory cache for repo lists ──────────────────────────────────────────
 // Lightweight Map cache: key = developerId, value = { data, expiresAt }
@@ -184,6 +185,54 @@ const listGithubRepos = async (developerId) => {
   return shaped;
 };
 
+// ─── Agent 2: Auto-Create Projects from Newly Linked Repos ──────────────────
+
+/**
+ * For each newly added GitHub repo, creates a Project document if one doesn't
+ * already exist (deduplication by githubRepoId + owner).
+ * Uses Promise.allSettled so a single failure never aborts the whole batch.
+ *
+ * @param {string} ownerId     - Developer's Mongo _id
+ * @param {Array}  newRepos    - Only the repos that were just added (diff from existing)
+ * @returns {Promise<{ created: number, skipped: number, failed: number }>}
+ */
+const createProjectsFromRepos = async (ownerId, newRepos) => {
+  const results = await Promise.allSettled(
+    newRepos.map(async (repo) => {
+      // Guard: skip if project with this githubRepoId already exists for this owner
+      const existing = await Project.findOne({
+        githubRepoId: repo.repoId,
+        owner: ownerId,
+      });
+      if (existing) return { status: 'skipped', repoId: repo.repoId };
+
+      return await Project.create({
+        name: repo.name,
+        description: repo.description || `Imported from GitHub: ${repo.fullName}`,
+        owner: ownerId,
+        githubRepoId: repo.repoId,
+        isGithubImport: true,
+        // clientName/hourlyRate left as schema defaults (null / 0)
+      });
+    })
+  );
+
+  let created = 0, skipped = 0, failed = 0;
+  results.forEach((r) => {
+    if (r.status === 'fulfilled') {
+      if (r.value?.status === 'skipped') skipped++;
+      else created++;
+    } else {
+      failed++;
+      // Duplicate key error (race condition) — treat as skipped, not an error
+      if (r.reason?.code === 11000) skipped++;
+      else console.error('[createProjectsFromRepos] Failed:', r.reason?.message);
+    }
+  });
+
+  return { created, skipped, failed };
+};
+
 // ─── Agent 3: Select Repos ────────────────────────────────────────────────────
 
 /**
@@ -213,14 +262,34 @@ const selectRepos = async (developerId, repos) => {
       fullName: String(r.fullName),
       private: Boolean(r.private),
       htmlUrl: r.htmlUrl || "",
+      description: r.description || null,
       language: r.language || null,
     };
   });
 
+  // ── Agent 1: State Comparison — find newly added repos ───────────────────────
+  // Read the current linkedRepos before overwriting, so we can diff
+  const currentSlice = await getGithubSlice(developerId);
+  const existingRepoIds = new Set(
+    (currentSlice?.github?.linkedRepos || []).map((r) => Number(r.repoId))
+  );
+  const newRepos = validated.filter((r) => !existingRepoIds.has(r.repoId));
+
+  // ── Persist the full new repo list ───────────────────────────────────────────
   const updated = await setLinkedRepos(developerId, validated);
   if (!updated) throw new ApiError(404, "Developer not found.");
 
-  return updated.github.linkedRepos;
+  // ── Agent 2: Auto-create projects for newly added repos ──────────────────────
+  let projectSummary = { created: 0, skipped: 0, failed: 0 };
+  if (newRepos.length > 0) {
+    projectSummary = await createProjectsFromRepos(developerId, newRepos);
+  }
+
+  return {
+    linkedRepos: updated.github.linkedRepos,
+    projectSummary,
+    newReposCount: newRepos.length,
+  };
 };
 
 // ─── Agent 2: Trial Status ────────────────────────────────────────────────────
@@ -319,6 +388,7 @@ module.exports = {
   linkGithubAccount,
   listGithubRepos,
   selectRepos,
+  createProjectsFromRepos,
   fetchTrialStatus,
   exchangeCodeForToken, // exported for OAuth redirect flow
   fetchGithubProfile,
