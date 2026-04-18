@@ -128,7 +128,7 @@ const runOnboardingPipeline = async ({ projectId, newMemberId }) => {
 
     const message = await _withTimeout(
       runPersonaWriter(brief),
-      PIPELINE_TIMEOUT_MS * 0.4, // Phase 3 gets remaining 40% of total budget
+      15000, // Phase 3 timeout explicitly increased to 15 seconds
       "Phase 3 (Persona Writer / Gemini)"
     );
 
@@ -168,7 +168,15 @@ const runOnboardingPipeline = async ({ projectId, newMemberId }) => {
 
   } catch (error) {
     const totalDurationMs = Date.now() - startedAt;
-    console.error(`[Orchestrator] ❌ Pipeline failed after ${totalDurationMs}ms: ${error.message}`);
+    
+    // Determine which phase failed based on metadata
+    let failedPhase = "Unknown Phase";
+    if (!meta.phases.dataMining) failedPhase = "Phase 1 (Data Mining)";
+    else if (!meta.phases.contextSynthesis) failedPhase = "Phase 2 (Context Synthesis)";
+    else if (!meta.phases.personaWriting) failedPhase = "Phase 3 (Persona Writer / Gemini)";
+
+    console.error(`[Orchestrator] ❌ Pipeline failed at ${failedPhase} after ${totalDurationMs}ms. Reason: ${error.message}`);
+    if (error.stack) console.error(`[Orchestrator] Stack Trace:`, error.stack);
 
     // Return a graceful error state — never throw out to the controller
     return {

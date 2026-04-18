@@ -97,7 +97,8 @@ Your entire response must be a valid JSON object with this shape:
 4. "bottleneckAlerts" must reference actual package names if bottlenecks were detected.
 5. "firstMission" must include the urgency level if the task is urgent.
 6. Keep the total message scannable — not a wall of text.
-7. The JSON must be parseable by JSON.parse() — no trailing commas, no markdown fences around the JSON.
+7. The JSON must be parseable by JSON.parse() — no trailing commas.
+8. Return ONLY raw JSON. No conversational text. No markdown formatting. Follow the schema exactly.
 `;
 
 // ─── Prompt Builder ───────────────────────────────────────────────────────────
@@ -313,8 +314,8 @@ const runPersonaWriter = async (brief) => {
     let parsed;
     try {
       // Strip potential markdown fences if model still wraps in ```json
-      const cleaned = rawText.replace(/^```(?:json)?\n?/i, "").replace(/```$/i, "").trim();
-      parsed = JSON.parse(cleaned);
+      const cleanJson = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+      parsed = JSON.parse(cleanJson);
     } catch (parseErr) {
       console.error("[PersonaWriter] ⚠️  Gemini returned unparseable JSON. Raw response:", rawText);
       return _buildFallbackMessage(brief);
