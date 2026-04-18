@@ -8,6 +8,17 @@ const options = {
   host,
   port,
   password,
+  maxRetriesPerRequest: null,
+  reconnectOnError(err) {
+    if (err.message.includes('limit exceeded')) {
+      console.error("🛑 Upstash limit exceeded detected. Banning further connection attempts.");
+      return 2; // Magic value in ioredis to completely abort connection
+    }
+  },
+  retryStrategy(times) {
+    if (times > 3) return null;
+    return Math.min(times * 1000, 3000);
+  }
 };
 
 // Enable TLS if using Upstash or external secured service

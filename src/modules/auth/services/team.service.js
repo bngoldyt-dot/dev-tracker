@@ -1,6 +1,7 @@
 const Developer = require("../repositories/auth.repository")
 const ApiError = require("../../../utils/apiErrors")
 const InvitationRepo = require("../repositories/invitations.repository");
+const { triggerOnboarding } = require("../../onboarding/onboarding.service");
 const sendInvite = async (adminId, recipientEmail) => {
   const emailLower = recipientEmail.toLowerCase().trim();
 
@@ -87,6 +88,18 @@ const respondToInvite = async (userId, invitationId, decision) => {
         developerId: user._id,
         message: `${user.name} has joined your team!`
       });
+    }
+
+    // --- 🤖 Automated Onboarding Bot: triggers if invitation has a projectId ---
+    // Fire-and-forget — does NOT block the accept response.
+    // The bot delivers the onboarding message via Socket.io asynchronously.
+    if (invitation.projectId) {
+      triggerOnboarding({
+        projectId: invitation.projectId.toString(),
+        newMemberId: user._id.toString(),
+      }).catch((err) =>
+        console.error(`[TeamService] Onboarding trigger failed: ${err.message}`)
+      );
     }
 
     return { message: "Invitation accepted. You are now part of the team!" };

@@ -15,6 +15,7 @@ const { invitaionsRouter } = require("./modules/auth/routes/invitations.routes")
 const subscriptionRouter = require("./modules/subscriptions/routes/subscription.routes");
 const feedbackRouter = require("./modules/feedbacks/routers/feedback.routes");
 const githubRouter = require("./modules/github/routes/github.routes");
+const { onboardingRouter } = require("./modules/onboarding/onboarding.routes");
 require('./utils/taskQueue');
 
 const app = express();
@@ -104,6 +105,7 @@ app.use('/feedbacks', feedbackRouter);
 // GET  /github/repos          → list repos (protect + requireProAccess)
 // POST /github/select-repos   → persist repo selection (protect + requireProAccess)
 app.use('/github', githubRouter);
+app.use('/onboarding', onboardingRouter);
 
 app.use(errorMiddleware);
 

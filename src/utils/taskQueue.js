@@ -7,7 +7,17 @@ const connection = {
   host,
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379,
   password: process.env.REDIS_PASSWORD || undefined,
-  maxRetriesPerRequest: null // Required by BullMQ
+  maxRetriesPerRequest: null, // Required by BullMQ
+  reconnectOnError(err) {
+    if (err.message.includes('limit exceeded')) {
+      console.error("🛑 BullMQ: Upstash limit exceeded detected. Aborting queue connections.");
+      return 2; // Magic value to abort ioredis completely
+    }
+  },
+  retryStrategy(times) {
+    if (times > 3) return null;
+    return Math.min(times * 1000, 3000);
+  }
 };
 
 if (host.includes("upstash.io") || process.env.REDIS_TLS === 'true') {
@@ -30,7 +40,7 @@ const autoCompleteWorker = new Worker('autoCompleteQueue', async (job) => {
     // 1. Fetch current redis state
     const redisKey = `task:${taskId}`;
     const taskState = await redis.hgetall(redisKey);
-    
+
     // If the task was paused manually, the job should have been removed,
     // but just in case, verify it's still active.
     if (!taskState || taskState.status !== 'active') {
@@ -60,23 +70,29 @@ const autoCompleteWorker = new Worker('autoCompleteQueue', async (job) => {
   }
 }, { connection });
 
-autoCompleteWorker.on('error', err => console.error('Auto Complete Worker Error:', err.message));
+autoCompleteWorker.on('error', async err => {
+  console.error('Auto Complete Worker Error:', err.message);
+  if (err.message.includes('limit exceeded')) {
+    console.warn("⏸️ Upstash limit exceeded. Pausing Auto Complete Worker to prevent spam.");
+    await autoCompleteWorker.pause();
+  }
+});
 
 // Background DB Sync Worker 
 const taskSyncWorker = new Worker('taskSyncQueue', async (job) => {
   try {
     const { developerId, projectId, taskId, type, source } = job.data;
     const TaskActivityRepo = require('../modules/auth/repositories/taskActivty.repository');
-    
+
     if (type === 'START') {
       await TaskActivityRepo.createStart({ developerId, projectId, taskId, source });
     } else if (type === 'END') {
       await TaskActivityRepo.createEnd({ developerId, projectId, taskId, source });
-      
+
       if (source === 'TIMER' || source === 'AUTO') {
-         // Also update the Task document to "done"
-         const Task = require('../modules/auth/schemas/task.schema');
-         await Task.findByIdAndUpdate(taskId, { status: 'done' });
+        // Also update the Task document to "done"
+        const Task = require('../modules/auth/schemas/task.schema');
+        await Task.findByIdAndUpdate(taskId, { status: 'done' });
       }
     }
   } catch (error) {
@@ -84,6 +100,12 @@ const taskSyncWorker = new Worker('taskSyncQueue', async (job) => {
   }
 }, { connection });
 
-taskSyncWorker.on('error', err => console.error('Task Sync Worker Error:', err.message));
+taskSyncWorker.on('error', async err => {
+  console.error('Task Sync Worker Error:', err.message);
+  if (err.message.includes('limit exceeded')) {
+    console.warn("⏸️ Upstash limit exceeded. Pausing Task Sync Worker to prevent spam.");
+    await taskSyncWorker.pause();
+  }
+});
 
 module.exports = { autoCompleteQueue, taskSyncQueue };
