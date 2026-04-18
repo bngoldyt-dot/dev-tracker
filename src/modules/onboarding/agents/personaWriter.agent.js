@@ -63,15 +63,35 @@ Your entire response must be a valid JSON object with this shape:
 {
   "subject": "<A crisp, impactful subject line — max 10 words>",
   "greeting": "<One powerful opening line — sets the tone immediately>",
-  "projectSnapshot": "<2-3 sentences: what the project is, its stack highlights, and its current pulse>",
-  "priorityFiles": "<Bullet-list (markdown) of the 3-5 files/dirs to open first — with WHY for each>",
-  "bottleneckAlerts": "<Bullet-list (markdown) of any risk zones or complexity hot-spots. If none, write: 'All clear on the radar — standard complexity for this stack.'>",
-  "firstMission": "<The newcomer's first task — title, estimated effort, deadline urgency, and a one-line strategic tip>",
+  "projectSnapshot": {
+    "projectName": "<Project Name>",
+    "summary": "<2-3 sentences: what the project is, its stack highlights, and its current pulse>",
+    "totalTasks": 0,
+    "activeTasks": 0,
+    "completedTasks": 0,
+    "completionPercentage": 0,
+    "teamSize": 0,
+    "techStack": ["<Tech>", "<Stack>"]
+  },
+  "priorityFiles": [
+    { "path": "<file path>", "reason": "<why to check this>", "riskLevel": "<low | medium | high | critical>" }
+  ],
+  "bottleneckAlerts": [
+    { "title": "<short title>", "description": "<details>", "severity": "<warning | danger | info>" }
+  ],
+  "firstMission": {
+    "title": "<task title>",
+    "description": "<task description>",
+    "estimatedHours": 0,
+    "deadline": "<ISO date string>",
+    "priority": "<low | medium | high | critical>",
+    "relatedFiles": ["<file>"]
+  },
   "closingSignal": "<A single memorable line — like a handshake from the codebase itself>"
 }
 
 ## RULES
-1. ALL fields are required. Never omit a field.
+1. ALL fields are required. Never omit a field. For unknown numbers, use 0.
 2. "projectSnapshot" must name the actual tech stack — not vague references like "modern stack".
 3. "priorityFiles" must use actual file/directory paths when provided. Be specific.
 4. "bottleneckAlerts" must reference actual package names if bottlenecks were detected.
@@ -112,8 +132,8 @@ const _buildUserPrompt = (brief) => {
   const readmeSection =
     readmeSummaries.length > 0
       ? readmeSummaries
-          .map((r) => `  [${r.repoName}] ${r.summary}`)
-          .join("\n")
+        .map((r) => `  [${r.repoName}] ${r.summary}`)
+        .join("\n")
       : "  No README data available.";
 
   // Format bottlenecks
@@ -208,19 +228,41 @@ Now generate the onboarding message JSON as specified. Remember: signal over noi
 const _buildFallbackMessage = (brief) => {
   const { developer, project, priorityFiles, firstTask, techStackMap } = brief;
   const topCategories = Object.keys(techStackMap).slice(0, 3).join(", ");
+  const flatStack = brief.techStackFlat || [];
 
   return {
     subject: `Welcome to ${project.name}, ${developer.name}`,
     greeting: `${developer.name} — you're now authenticated into the ${project.name} codebase. ARIA is standing by.`,
-    projectSnapshot: `${project.name} is a ${project.status} project ${project.clientName ? `for ${project.clientName}` : ""}. The stack runs on ${topCategories || "a modern backend stack"}. ${project.description || ""}`,
-    priorityFiles: priorityFiles
-      .slice(0, 4)
-      .map((f) => `- **${f.filename}** — ${f.reason}`)
-      .join("\n"),
-    bottleneckAlerts: "Automated analysis unavailable — perform manual dependency review.",
-    firstMission: firstTask
-      ? `Task: **${firstTask.title}** | Est: ${firstTask.estimatedHours ?? "TBD"} hrs | Urgency: ${firstTask.urgency.label}`
-      : "No task assigned yet — sync with team lead for initial scope.",
+    projectSnapshot: {
+      projectName: project.name,
+      summary: `${project.name} is a ${project.status} project ${project.clientName ? `for ${project.clientName}` : ""}. The stack runs on ${topCategories || "a modern backend stack"}. ${project.description || ""}`,
+      totalTasks: 0,
+      activeTasks: 0,
+      completedTasks: 0,
+      completionPercentage: 0,
+      teamSize: 0,
+      techStack: flatStack
+    },
+    priorityFiles: priorityFiles.slice(0, 4).map((f) => ({
+      path: f.filename,
+      reason: f.reason,
+      riskLevel: "medium"
+    })),
+    bottleneckAlerts: [
+      {
+        title: "Automated Analysis Unavailable",
+        description: "Perform manual dependency review.",
+        severity: "warning"
+      }
+    ],
+    firstMission: {
+      title: firstTask ? firstTask.title : "Standby for assignment",
+      description: firstTask ? `Estimated: ${firstTask.estimatedHours ?? "TBD"} hrs | Urgency: ${firstTask.urgency.label}` : "No task assigned yet — sync with team lead for initial scope.",
+      estimatedHours: firstTask?.estimatedHours || 0,
+      deadline: firstTask?.deadline || new Date().toISOString(),
+      priority: "medium",
+      relatedFiles: []
+    },
     closingSignal: "The stack is live. The clock is ticking. Ship clean code.",
     _fallback: true,
   };
@@ -252,12 +294,12 @@ const runPersonaWriter = async (brief) => {
   try {
     const client = _getGeminiClient();
     const model = client.getGenerativeModel({
-      model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
+      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
       systemInstruction: ARIA_SYSTEM_PROMPT,
       generationConfig: {
         temperature: 0.75,       // balanced creativity — precise but not robotic
         topP: 0.9,
-        maxOutputTokens: 1024,   // keeps response tight and parseable
+        maxOutputTokens: 4096,   // keeps response tight and parseable
         responseMimeType: "application/json", // force JSON output mode
       },
     });
