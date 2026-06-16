@@ -33,18 +33,18 @@ const ALLOWED_ORIGINS = [
 // ==========================================
 // 1️⃣ أول خطوة: ميديليوير الـ CORS لازم يكون فوق خالص!
 // ==========================================
-// app.use(cors({
-//   origin: (origin, callback) => {
-//     if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error(`CORS policy: origin '${origin}' not allowed`));
-//     }
-//   },
-//   credentials: true,
-//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-//   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
-// }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS policy: origin '${origin}' not allowed`));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
+}));
 
 // ==========================================
 // 2️⃣ ثاني خطوة: ضبط الـ Helmet عشان يوافق على الـ WebSockets
