@@ -1,7 +1,20 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const Stripe = require('stripe');
 const Developer = require('../../auth/schemas/developer.schema');
 const Plan = require('../schemas/plan.schema');
 const ApiError = require('../../../utils/apiErrors');
+
+// Lazy initialization — prevents startup crash if STRIPE_SECRET_KEY is not yet set
+let _stripe = null;
+const getStripe = () => {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new ApiError(500, 'STRIPE_SECRET_KEY is not configured on this server.');
+    }
+    _stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return _stripe;
+};
+
 
 const createStripeCustomer = async (developer) => {
   try {
@@ -9,7 +22,7 @@ const createStripeCustomer = async (developer) => {
       return developer.subscription.stripeCustomerId;
     }
 
-    const customer = await stripe.customers.create({
+    const customer = await getStripe().customers.create({
       email: developer.email,
       name: developer.name,
       metadata: {
@@ -36,7 +49,7 @@ const createCheckoutSession = async ({ developer, planId, successUrl, cancelUrl 
 
     const customerId = await createStripeCustomer(developer);
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'subscription',
       customer: customerId,
@@ -67,7 +80,7 @@ const createCheckoutSession = async ({ developer, planId, successUrl, cancelUrl 
 
 const cancelStripeSubscription = async (stripeSubscriptionId) => {
   try {
-    const deletedSubscription = await stripe.subscriptions.cancel(stripeSubscriptionId);
+    const deletedSubscription = await getStripe().subscriptions.cancel(stripeSubscriptionId);
     return deletedSubscription;
   } catch (error) {
     throw new ApiError(500, `Stripe Cancel Failed: ${error.message}`);
@@ -76,7 +89,7 @@ const cancelStripeSubscription = async (stripeSubscriptionId) => {
 
 const constructWebhookEvent = (rawBody, signature) => {
   try {
-    return stripe.webhooks.constructEvent(
+    return getStripe().webhooks.constructEvent(
       rawBody,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET
