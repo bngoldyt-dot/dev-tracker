@@ -165,7 +165,7 @@ exports.handlePaymobWebhook = async (req, res, next) => {
     });
 
     const calculatedHmac = crypto
-      .createHmac('sha512', process.env.PAYMOB_HMAC_SECRET)
+      .createHmac('sha512', process.env.PAYMOB_HMAC)
       .update(concatenatedString)
       .digest('hex');
 

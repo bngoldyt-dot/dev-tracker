@@ -2,44 +2,32 @@ const paymobService = require('../services/paymob.service');
 const stripeService = require('../services/stripe.service');
 const Plan = require('../schemas/plan.schema');
 const ApiError = require('../../../utils/apiErrors');
-const { findUserById } = require('../../auth/repositories/auth.repository');
-const mongoose = require("mongoose");
 const Developer = require('../../auth/schemas/developer.schema');
+
 exports.checkout = async (req, res, next) => {
   try {
     const { planId, currency } = req.body;
     const developer = req.user;
-    console.log("Searching for Plan ID:", planId);
-    const plan1 = await Plan.findById(planId);
-    console.log("Plan found in DB:", plan1);
-    console.log("Developer ID being sent to Stripe:", req.user._id.toString());
-    console.log("Developer object:", req.user);
 
+    if (!planId || !currency) {
+      return next(new ApiError(400, 'planId and currency are required'));
+    }
 
-    const result = await findUserById(
-      req.user._id,
-      { $set: { "subscription.status": "active", "subscription.isPremium": true } },
-      { new: true }
-    );
-
-    console.log("DB Name:", mongoose.connection.db.databaseName);
-    console.log("Collection Name:", Developer.collection.collectionName);
-    console.log("New status:", result?.subscription?.status);
-    console.log("updatedAt:", result?.updatedAt);
     const plan = await Plan.findById(planId);
     if (!plan) {
       return next(new ApiError(404, 'Plan not found'));
     }
 
-
-
-
-    developer.subscription = developer.subscription || {};
-    // Only save temp info, don't grant the plan tier or interval until payment is successful
-    developer.subscription.currency = currency;
-    developer.subscription.planIdTemp = planId;
-
-    await developer.save();
+    // NOTE: We do NOT update isPremium here.
+    // The webhook handler is the ONLY place that sets isPremium:true,
+    // because only Stripe/Paymob can confirm a successful payment.
+    // Saving temp info (currency, planId) to DB safely without touching isPremium.
+    await Developer.findByIdAndUpdate(developer._id, {
+      $set: {
+        "subscription.currency": currency,
+        "subscription.planIdTemp": planId,
+      }
+    });
 
     if (currency === "EGP") {
       const token = await paymobService.getAuthToken();
