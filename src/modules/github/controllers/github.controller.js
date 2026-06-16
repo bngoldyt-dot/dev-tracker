@@ -147,10 +147,10 @@ const handleWebhook = async (req, res, next) => {
     const eventType = req.headers["x-github-event"];
     
     // Express raw body is required for HMAC validation
-    // Assume app.js uses express.raw() for /webhooks/ paths as originally seen in app.js
+    // Raw body buffer is parsed by app.use() in app.js
     const payloadBuffer = req.body; 
 
-    if (!verifyGitHubWebhook(payloadBody, signature)) {
+    if (!verifyGitHubWebhook(payloadBuffer, signature)) {
       return res.status(401).json({ error: "Invalid webhook signature" });
     }
 

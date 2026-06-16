@@ -64,14 +64,12 @@ app.use(
   })
 );
 
-// ✅ ميديليوير الـ webhook والـ json body لسه في مكانه
-app.use((req, res, next) => {
-  if (req.originalUrl.includes('/webhooks/')) {
-    express.raw({ type: 'application/json' })(req, res, next);
-  } else {
-    express.json({ limit: "10kb" })(req, res, next);
-  }
-});
+// ✅ Webhook raw body parser middlewares (MUST be defined before express.json() to prevent body structure destruction)
+app.use("/subscribe/webhooks/stripe", express.raw({ type: "*/*" }));
+app.use("/github/webhooks/github", express.raw({ type: "*/*" }));
+
+// ✅ Global JSON body parser (Only processes non-webhook routes as they aren't pre-parsed by the raw middleware)
+app.use(express.json({ limit: "10kb" }));
 
 app.set('trust proxy', 1);
 

@@ -8,10 +8,9 @@ const { protect } = require('../../../middlewares/auth.middleware');
 // Webhook Routes (MUST NOT use protect)
 // -------------------------------------------------------------
 
-// NOTE: Webhook for Stripe MUST use express.raw() to parse the raw body string for signature verification
+// NOTE: Webhook for Stripe receives raw body processed by app.use() in app.js
 router.post(
   '/webhooks/stripe',
-  express.raw({ type: 'application/json' }),
   webhookController.handleStripeWebhook
 );
 
