@@ -49,11 +49,13 @@ const getArchivedProjects = async (ownerId, page, limit) => {
 };
 
 const findAllProjects = async (ownerIds, page, limit) => {
-  // 1. تصحيح حساب الـ skip (لو الـ page بيبدأ من 1)
-  // لو page = 1 و limit = 10، وعملت 1 * 10 هيعمل skip لـ 10 عناصر ويجيب من الصفحة التانية علطول!
-  const skip = (page - 1) * limit;
+  // 🔥 التأمين هنا: بنضمن إن الـ page مش أقل من 1، والـ limit مش أقل من 1
+  const safePage = Math.max(1, parseInt(page) || 1);
+  const safeLimit = Math.max(1, parseInt(limit) || 10);
 
-  // 2. تشغيل الـ Find والـ Count بالتوازي بـ Promise.all لتقليل الـ Response Time للنص
+  // حساب الـ skip بناءً على القيم المتأمنة
+  const skip = (safePage - 1) * safeLimit;
+
   const [projects, totalActiveProjects] = await Promise.all([
     Project.find({
       owner: { $in: ownerIds },
@@ -61,12 +63,12 @@ const findAllProjects = async (ownerIds, page, limit) => {
     })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
+      .limit(safeLimit)
       .populate({
-        path: 'owner',          // اسم الحقل اللي رابط المشروع بالـ Admin
-        select: 'name email avatar', // 🔥 الأوبتميزايشن: هات الحقول دي بس من المطور/الأدمن
+        path: 'owner',
+        select: 'name email avatar',
       })
-      .lean(), // 🔥 الكينج بتاع الـ Optimization: بيرجع JSON عادي أسرع وأخف 10 مرات من الـ Mongoose Document
+      .lean(),
 
     Project.countDocuments({
       owner: { $in: ownerIds },
