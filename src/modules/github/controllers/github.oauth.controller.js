@@ -63,15 +63,37 @@ const githubOAuthCallback = async (req, res, next) => {
   try {
     const { code, state, error: ghError } = req.query;
 
+    const frontendUrl = process.env.FRONTEND_URL || "https://strong-tartufo-f65dca.netlify.app";
+
     // User denied access on GitHub
     if (ghError) {
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:4200";
       return res.redirect(`${frontendUrl}/github/error?reason=access_denied`);
     }
 
     if (!code) return next(new ApiError(400, "No code received from GitHub."));
-    if (!state) return next(new ApiError(400, "Missing state (DevTracker JWT)."));
+    if (!state) return next(new ApiError(400, "Missing state parameter."));
 
+    // ── 1. LOGIN FLOW ────────────────────────────────────────────────────────
+    if (state === "login") {
+      const { githubLoginDev } = require("../../auth/services/auth.service");
+      const { developer, token } = await githubLoginDev(code);
+
+      const devData = {
+        id: developer._id,
+        name: developer.name,
+        email: developer.email,
+        role: developer.role,
+      };
+
+      // Redirect to frontend auth/login with token and user data
+      return res.redirect(
+        `${frontendUrl}/auth/login?token=${token}&user=${encodeURIComponent(
+          JSON.stringify(devData)
+        )}`
+      );
+    }
+
+    // ── 2. LINK ACCOUNT FLOW ──────────────────────────────────────────────────
     // Verify the state is a genuine DevTracker JWT
     let decoded;
     try {
@@ -93,7 +115,7 @@ const githubOAuthCallback = async (req, res, next) => {
     );
 
     // Redirect to frontend success page with trial info as query params
-    const frontendBase = process.env.FRONTEND_GITHUB_SUCCESS_URL || "http://localhost:4200/github/success";
+    const frontendBase = process.env.FRONTEND_GITHUB_SUCCESS_URL || `${frontendUrl}/github/success`;
     const params = new URLSearchParams({
       trialStarted:   String(trialStarted),
       githubLogin:    githubLogin || "",
