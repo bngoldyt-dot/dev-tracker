@@ -311,14 +311,37 @@ const fetchTrialStatus = async (developerId) => {
   // isPro is true if the user has a paid subscription OR an active trial
   const isPremium = slice.subscription?.isPremium === true;
 
+  // For paid premium users the trial window may have expired (daysRemaining = 0),
+  // but we must NOT show "0 days left" — derive days from the subscription end date instead.
+  let displayDaysRemaining = daysRemaining;
+  let displayEndsAt = endsAt;
+
+  if (isPremium) {
+    // Schema field is 'currentPeriodEnd', fallback to 'trialEndsAt'
+    const rawEnd = slice.subscription?.currentPeriodEnd
+      || slice.subscription?.trialEndsAt
+      || null;
+    const subEnd = rawEnd ? new Date(rawEnd) : null;
+
+    if (subEnd && subEnd > new Date()) {
+      const msLeft = subEnd - new Date();
+      displayDaysRemaining = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+      displayEndsAt = subEnd;
+    } else {
+      // Subscription has no end date or is perpetual — treat as unlimited
+      displayDaysRemaining = null;   // null = unlimited, handled in the UI
+      displayEndsAt = null;
+    }
+  }
+
   return {
     isPro: isPremium || active,          // true for both paid users and active trials
     isPremium,                            // true ONLY for paid subscribers
     githubLinked: !!githubId,
     githubLogin: githubLogin || null,
-    active,
-    daysRemaining,
-    endsAt,
+    active: isPremium || active,         // premium users are always "active"
+    daysRemaining: displayDaysRemaining,
+    endsAt: displayEndsAt,
     linkedRepos: linkedRepos || [],
   };
 };
@@ -348,10 +371,10 @@ const fetchDeveloperActivity = async (developerId) => {
     });
 
     const linkedRepoNames = new Set(linkedRepos.map(r => r.fullName));
-    
+
     // Filter and format the events
     return data
-      .filter(event => 
+      .filter(event =>
         (event.type === 'PushEvent' || event.type === 'PullRequestEvent' || event.type === 'IssuesEvent') &&
         linkedRepoNames.has(event.repo?.name)
       )
@@ -359,11 +382,11 @@ const fetchDeveloperActivity = async (developerId) => {
       .map(event => {
         let type = 'push';
         let message = 'Committed code';
-        
+
         if (event.type === 'PushEvent') {
           type = 'push';
-          message = event.payload.commits && event.payload.commits.length > 0 
-            ? event.payload.commits[0].message.split('\n')[0] 
+          message = event.payload.commits && event.payload.commits.length > 0
+            ? event.payload.commits[0].message.split('\n')[0]
             : 'Pushed commits';
         } else if (event.type === 'PullRequestEvent') {
           type = 'pull_request';

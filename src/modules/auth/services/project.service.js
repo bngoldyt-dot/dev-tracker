@@ -76,19 +76,19 @@ const getDevProjectArchived = async (developerId, page, limit) => {
 };
 
 const getAllDevProjects = async (developerId, page, limit) => {
-  if (!developerId) throw new ApiError(404, "Developer not found"); // 1. هات بيانات المطور عشان نشوف الـ teams بتاعته
+  if (!developerId) throw new ApiError(404, "Developer not found");
 
-  const dev = await findUserById(developerId); // 2. تجميع كل الـ IDs اللي مسموح له يشوف مشاريعهم
-  // هو يقدر يشوف مشاريع نفسه + مشاريع أي أدمن هو فيريقه
+  const dev = await findUserById(developerId);
+
+  // Collect all owner IDs: the developer themselves + any team admins
   const allowedOwners = [developerId];
   if (dev.teams && dev.teams.length > 0) {
     const adminIds = dev.teams.map((t) => t.adminId);
     allowedOwners.push(...adminIds);
-  } // 3. نعدل الـ Repository عشان يدور بـ Array of IDs مش ID واحد
-  // ملاحظة: لازم تعدل الـ findAllProjects في الـ repository عشان يستخدم $in
+  }
 
-  const Projects = await findAllProjects(allowedOwners, page, limit);
-  const totalActiveProjects = await countAllProjects(allowedOwners);
+  // findAllProjects returns { projects, totalActiveProjects } — destructure it
+  const { projects: Projects, totalActiveProjects } = await findAllProjects(allowedOwners, page, limit);
 
   return { Projects, totalActiveProjects };
 };
@@ -111,7 +111,7 @@ const deleteAllDevProject = async (developerId) => {
   if (result.deletedCount === 0) {
     throw new ApiError(404, "History is empty");
   }
-  return deleteAllDevProject;
+  return result;
 };
 
 module.exports = {

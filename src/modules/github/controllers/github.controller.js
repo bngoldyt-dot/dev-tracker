@@ -145,10 +145,10 @@ const handleWebhook = async (req, res, next) => {
   try {
     const signature = req.headers["x-hub-signature-256"];
     const eventType = req.headers["x-github-event"];
-    
+
     // Express raw body is required for HMAC validation
     // Raw body buffer is parsed by app.use() in app.js
-    const payloadBuffer = req.body; 
+    const payloadBuffer = req.body;
 
     if (!verifyGitHubWebhook(payloadBuffer, signature)) {
       return res.status(401).json({ error: "Invalid webhook signature" });
@@ -158,20 +158,20 @@ const handleWebhook = async (req, res, next) => {
 
     // Handle 'push' events
     if (eventType === "push") {
-       const githubLogin = payload.sender.login;
-       const repositoryName = payload.repository.full_name;
-       const commitCount = payload.commits ? payload.commits.length : 0;
+      const githubLogin = payload.sender.login;
+      const repositoryName = payload.repository.full_name;
+      const commitCount = payload.commits ? payload.commits.length : 0;
 
-       // Find developer by github login
-       const developer = await Developer.findOne({ "github.githubLogin": githubLogin });
-       
-       if (developer) {
-          // Log Activity (assuming source MANUAL for now, or you could extend TaskActivity)
-          // In a real scenario we'd map this to a specific Project/Task or extend schema
-           console.log(`[GitHub Webhook] Push from ${githubLogin} to ${repositoryName} with ${commitCount} commits. Logged as activity.`);
-          // Example (Requires schema updates to fully support raw github events without project/task links):
-          // await TaskActivity.create({ developer: developer._id, type: 'END', source: 'MANUAL', ... })
-       }
+      // Find developer by github login
+      const developer = await Developer.findOne({ "github.githubLogin": githubLogin });
+
+      if (developer) {
+        // Log Activity (assuming source MANUAL for now, or you could extend TaskActivity)
+        // In a real scenario we'd map this to a specific Project/Task or extend schema
+        console.log(`[GitHub Webhook] Push from ${githubLogin} to ${repositoryName} with ${commitCount} commits. Logged as activity.`);
+        // Example (Requires schema updates to fully support raw github events without project/task links):
+        // await TaskActivity.create({ developer: developer._id, type: 'END', source: 'MANUAL', ... })
+      }
     }
 
     // Acknowledge webhook
@@ -191,7 +191,7 @@ const trialActivity = async (req, res, next) => {
   try {
     const developerId = req.user._id.toString();
     const activity = await fetchDeveloperActivity(developerId);
-    
+
     res.status(200).json({
       message: "Activity fetched successfully.",
       data: activity,
