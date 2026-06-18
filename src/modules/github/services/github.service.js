@@ -197,6 +197,20 @@ const listGithubRepos = async (developerId) => {
  * @returns {Promise<{ created: number, skipped: number, failed: number }>}
  */
 const createProjectsFromRepos = async (ownerId, newRepos) => {
+  // Check free-tier limit BEFORE the batch — one DB query instead of per-repo
+  const developer = await Developer.findById(ownerId).select('subscription').lean();
+  if (!developer) throw new ApiError(404, "Developer not found.");
+
+  const isPremium = developer.subscription?.isPremium === true;
+  if (!isPremium) {
+    const existingCount = await Project.countDocuments({ owner: ownerId });
+    if (existingCount >= 3) {
+      // Silently skip instead of throwing — avoids breaking the entire sync
+      console.warn(`[createProjectsFromRepos] Free tier limit reached for ${ownerId}. Skipping auto-creation.`);
+      return { created: 0, skipped: newRepos.length, failed: 0 };
+    }
+  }
+
   const results = await Promise.allSettled(
     newRepos.map(async (repo) => {
       // Guard: skip if project with this githubRepoId already exists for this owner
@@ -205,14 +219,7 @@ const createProjectsFromRepos = async (ownerId, newRepos) => {
         owner: ownerId,
       });
       if (existing) return { status: 'skipped', repoId: repo.repoId };
-      const developer = await findUserById(ownerId);
-      if (!developer) throw new ApiError(404, "Developer not found");
-      if (!developer.subscription?.isPremium && developer.projectCount >= 3) {
-        throw new ApiError(
-          403,
-          "Free tier limit reached. Please upgrade to add more than 3 projects.",
-        );
-      }
+
       return await Project.create({
         name: repo.name,
         description: repo.description || `Imported from GitHub: ${repo.fullName}`,
