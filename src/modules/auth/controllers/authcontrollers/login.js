@@ -110,15 +110,11 @@ const githubLogin = async (req, res, next) => {
 // The server must overwrite the cookie with an immediately-expired one.
 // ─────────────────────────────────────────────
 const logout = (req, res) => {
+  // Flags must EXACTLY match the ones used when the cookie was SET,
+  // otherwise the browser treats it as a different cookie and ignores the clear.
+  // getCookieOptions() guarantees the same sameSite / secure values.
   res
-    .cookie("token", "", {
-      // Flags must exactly match the ones used when the cookie was SET,
-      // otherwise the browser treats it as a different cookie and ignores it.
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 0, // expire immediately
-    })
+    .cookie("token", "", getCookieOptions({ maxAge: 0 }))
     .status(200)
     .json({ message: "Logged out successfully." });
 };

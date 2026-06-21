@@ -24,6 +24,7 @@ const ApiError = require("../../../utils/apiErrors");
 const jwt = require("jsonwebtoken");
 const Developer = require("../../auth/schemas/developer.schema");
 const { linkGithubAccount } = require("../services/github.service");
+const { getCookieOptions } = require("../../../utils/cookieOptions");
 
 // Agent 3 (Refactor): Scopes driven by env to request webhook permissions
 const SCOPES = process.env.GITHUB_SCOPES || ["read:user", "user:email", "repo", "admin:repo_hook"].join(" ");
@@ -85,11 +86,14 @@ const githubOAuthCallback = async (req, res, next) => {
         role: developer.role,
       };
 
-      // Redirect to frontend auth/login with token and user data
+      // Set the JWT as an HttpOnly cookie — never expose it in the redirect URL.
+      // The cookie travels with the redirect response; the browser stores it
+      // and will send it automatically on every subsequent API request.
+      res.cookie("token", token, getCookieOptions());
+
+      // Redirect to frontend with ONLY the developer profile (no token in URL).
       return res.redirect(
-        `${frontendUrl}/auth/login?token=${token}&user=${encodeURIComponent(
-          JSON.stringify(devData)
-        )}`
+        `${frontendUrl}/auth/login?user=${encodeURIComponent(JSON.stringify(devData))}`
       );
     }
 
