@@ -14,7 +14,7 @@
  *  which can corrupt in-flight MongoDB writes and lose BullMQ jobs silently.
  */
 const mongoose = require("mongoose");
-const { server, autoCompleteQueue, taskSyncQueue } = require("./src/app");
+const { server, autoCompleteQueue, taskSyncQueue } = require("./app");
 
 // ── Graceful shutdown function ────────────────────────────────────────────────
 const shutdown = async (signal) => {
